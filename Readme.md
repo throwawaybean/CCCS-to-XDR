@@ -13,4 +13,4 @@ The output file is named in the format `CCCS-IOC-weeknumber.txt`, where `weeknum
 To use this script, you need to provide the path to the input CSV file as a command line argument. Here's an example:
 
 ```bash
-python3 ioc_extractor.py -f /path/to/input.csv
+python3 CCCS-to-XDR.py -f /path/to/input.csv
