@@ -1,68 +1,56 @@
-import argparse
 import csv
+import re
+import argparse
 from datetime import datetime
 
-def parse_csv(input_file):
-    # Initialize a set to store unique data values
-    unique_values = set()
+# Define a function to clean up URLs and domains
+def clean_url_or_domain(value):
+    # Remove the scheme (http, https)
+    value = re.sub(r'^https?:\/\/', '', value)
+    # Remove subdirectories
+    value = re.sub(r'\/.*', '', value)
+    return value
 
-    # Open the CSV file for reading
-    with open(input_file, 'r', encoding='utf-8-sig') as csvfile:
-        reader = csv.reader(csvfile)
-        
+# Define a function to process the CSV file
+def process_csv(input_file):
+    # Define the allowed data types
+    allowed_data_types = ["URL/URL", "IP_ADDRESS/ADRESSE_IP", "DOMAIN/DOMAINE", "MD5/MD5"]
+    
+    # Read the input CSV file
+    with open(input_file, mode='r', encoding='utf-8-sig') as file:
+        reader = csv.reader(file)
         # Skip the first three rows
         for _ in range(3):
             next(reader)
         
-        # Initialize column indices
-        data_type_index = -1
-        data_value_index = -1
-        
-        # Read the header row to determine column indices
-        header = next(reader)
-        for index, column in enumerate(header):
-            if "Data Type/Type de données" in column:
-                data_type_index = index
-            elif "Data Value/Valeur des données" in column:
-                data_value_index = index
-        
-        # If "Data Value/Valeur des données" column not found, default to second column
-        if data_value_index == -1:
-            data_value_index = 1
-        
-        # Process each row in the CSV
+        # Process the remaining rows
+        processed_data = set()
         for row in reader:
-            if len(row) > data_value_index and row[data_value_index].strip():
-                # Modify the data value to strip characters after the third '/'
-                data_value = row[data_value_index].strip()
-                # Find the third '/' and slice up to that point
-                third_slash_index = data_value.find('/', data_value.find('/', data_value.find('/') + 1) + 1)
-                if third_slash_index != -1:
-                    data_value = data_value[:third_slash_index]
-
-                # Add the modified data value to the set (to ensure uniqueness)
-                unique_values.add(data_value.strip())
+            if len(row) < 2:
+                continue  # Skip rows that don't have at least two columns
+            data_type, data_value = row[0], row[1]
+            if data_type in allowed_data_types:
+                if data_type in ["URL/URL", "DOMAIN/DOMAINE"]:
+                    data_value = clean_url_or_domain(data_value)
+                processed_data.add(data_value)
     
     # Get the current week number
     week_number = datetime.now().isocalendar()[1]
+    output_file = f'cccs-ioc-week{week_number}.txt'
+    
+    # Write the processed data to the output file
+    with open(output_file, mode='w', encoding='utf-8') as file:
+        for data_value in processed_data:
+            file.write(data_value + '\n')
+    
+    print(f'Processed data has been saved to {output_file}')
 
-    # Define the output file name
-    output_file = f'CCCS-IOC-week{week_number}.txt'
-
-    # Write unique values to a text file
-    with open(output_file, 'w', encoding='utf-8') as outfile:
-        for value in sorted(unique_values):
-            outfile.write(value + '\n')
-
-    # Print a success message
-    print(f"The file has been saved as {output_file}")
+# Define the main function to handle command-line arguments
+def main():
+    parser = argparse.ArgumentParser(description='Process a CSV file.')
+    parser.add_argument('-f', '--file', required=True, help='Path to the input CSV file')
+    args = parser.parse_args()
+    process_csv(args.file)
 
 if __name__ == '__main__':
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Process CSV file and extract unique data values.')
-    parser.add_argument('-f', '--file', required=True, help='Input CSV file path')
-    args = parser.parse_args()
-    
-    # Call function to parse the CSV file
-    parse_csv(args.file)
-
+    main()
